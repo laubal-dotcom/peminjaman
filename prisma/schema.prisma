@@ -1,0 +1,109 @@
+// Prisma schema untuk Sistem Peminjaman Alat - Next.js
+// Database: PostgreSQL (Supabase / Neon)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  username  String   @unique
+  password  String
+  role      String   // admin | petugas | peminjam
+  createdAt DateTime @default(now()) @map("created_at")
+
+  peminjaman   Peminjaman[]
+  pengembalian Pengembalian[]
+  logAktivitas LogAktivitas[]
+
+  @@map("users")
+}
+
+model Kategori {
+  id          Int      @id @default(autoincrement())
+  nama        String
+  deskripsi   String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  alat Alat[]
+
+  @@map("kategori")
+}
+
+model Alat {
+  id          Int      @id @default(autoincrement())
+  kategoriId  Int      @map("kategori_id")
+  nama        String
+  kode        String?  @unique
+  stok        Int      @default(0)
+  deskripsi   String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  kategori           Kategori            @relation(fields: [kategoriId], references: [id])
+  detailPeminjaman   DetailPeminjaman[]
+
+  @@map("alat")
+}
+
+model Peminjaman {
+  id               Int       @id @default(autoincrement())
+  userId           Int       @map("user_id")
+  tglPinjam        DateTime  @map("tgl_pinjam") @db.Date
+  tglKembali       DateTime  @map("tgl_kembali") @db.Date
+  tglKembaliAktual DateTime? @map("tgl_kembali_aktual") @db.Date
+  status           String    @default("menunggu") // menunggu|dipinjam|ditolak|proses_kembali|selesai
+  keterangan       String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user             User              @relation(fields: [userId], references: [id])
+  detailPeminjaman DetailPeminjaman[]
+  pengembalian     Pengembalian[]
+
+  @@map("peminjaman")
+}
+
+model DetailPeminjaman {
+  id           Int  @id @default(autoincrement())
+  peminjamanId Int  @map("peminjaman_id")
+  alatId       Int  @map("alat_id")
+  jumlah       Int
+
+  peminjaman Peminjaman @relation(fields: [peminjamanId], references: [id], onDelete: Cascade)
+  alat       Alat       @relation(fields: [alatId], references: [id])
+
+  @@map("detail_peminjaman")
+}
+
+model Pengembalian {
+  id           Int      @id @default(autoincrement())
+  peminjamanId Int      @map("peminjaman_id")
+  petugasId    Int?     @map("petugas_id")
+  tglKembali   DateTime @map("tgl_kembali") @db.Date
+  denda        Decimal  @default(0) @db.Decimal(12, 2)
+  kondisiAlat  String?  @map("kondisi_alat")
+  keterangan   String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  peminjaman Peminjaman @relation(fields: [peminjamanId], references: [id], onDelete: Cascade)
+  petugas    User?     @relation(fields: [petugasId], references: [id])
+
+  @@map("pengembalian")
+}
+
+model LogAktivitas {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  aksi      String
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("log_aktivitas")
+}
